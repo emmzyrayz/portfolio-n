@@ -38,7 +38,7 @@ Last updated: 2026-10-17
 - [x] Phase 0: baseline build/lint, this log
 - [x] Phase 0: `.env.example`
 - [x] Phase 1 (code complete, placeholder content): theme + layout + content files + ported sections + contact action. Lint/build pass; desktop checked in browser. TODO: check mobile widths, test a real SMTP send, replace all PLACEHOLDER content in `src/content/`, add `/resume.pdf` and set `profile.resumeUrl`, set `GITHUB_USERNAME` to pull real projects
-- [ ] Phase 2: Neon/Drizzle schema (`apps`, `users`, `otp_codes`, `sessions`) + OTP auth
+- [x] Phase 2 COMPLETE: Neon project linked (`neon.ts`, `.neon`; `dev` branch, no TTL), Drizzle schema (`apps`, `users`, `otp_codes`, `sessions`, plus `rate_limits`) in `src/db/`, migration in `drizzle/`, owner-only OTP login (`src/app/actions/auth.ts`, `src/lib/{otp,session,dal,rate-limit,app}.ts`, `src/proxy.ts`, `/login`, placeholder `/dashboard`). Driver: `drizzle-orm/neon-http` on the pooled URL; migrations use `DATABASE_URL_UNPOOLED` (`pnpm db:generate`, `pnpm db:migrate`). Dev with SMTP unset logs the OTP to the server console. TODO: apply the migration to `production` before deploying; set `SESSION_SECRET`/`OWNER_EMAIL`/SMTP in Vercel; test one real SMTP OTP send.
 - [ ] Phase 3: dashboard + `/dashboard/edit`
 - [ ] Phase 4: CV builder (Gemini)
 - [ ] Phase 5: hub services
@@ -49,6 +49,6 @@ Last updated: 2026-10-17
 - `cacheComponents` means DB/cookie reads must be under `<Suspense>` or `"use cache"`.
 
 ## 6. Next session starts at
-Review Phase 1 with real content, then Phase 2: Neon + Drizzle schema and owner-only OTP auth.
+Phase 3: dashboard + `/dashboard/edit` (DB-backed content with static fallback).
 
 Notes: `_legacy/` (gitignored, excluded from tsconfig/eslint) holds the old UI for reference; delete when no longer needed. Dark mode intentionally dropped for now (light only). Remote project images use `unoptimized` because `sharp` is disabled.
