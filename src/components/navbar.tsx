@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LuDownload, LuMenu, LuX } from "react-icons/lu";
-import { navLinks, profile } from "@/content/profile";
+import { navLinks } from "@/content/profile";
 
 const linkClass =
   "transition-transform duration-300 ease-in-out hover:-translate-y-1 hover:scale-105 focus-visible:-translate-y-1";
 
-export function Navbar() {
+type NavbarProps = { fullName: string; resumeUrl?: string };
+
+export function Navbar({ fullName, resumeUrl }: NavbarProps) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -16,7 +18,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-paper/90 backdrop-blur">
       <nav aria-label="Main" className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8 lg:py-4">
         <Link href="/" onClick={close} className="text-base font-extrabold transition-transform duration-300 hover:scale-105 lg:text-lg">
-          {profile.fullName}
+          {fullName}
         </Link>
 
         <ul className="hidden items-center gap-6 text-lg font-semibold md:flex lg:gap-8">
@@ -29,9 +31,9 @@ export function Navbar() {
           ))}
         </ul>
 
-        {profile.resumeUrl && (
+        {resumeUrl && (
           <a
-            href={profile.resumeUrl}
+            href={resumeUrl}
             download
             className="hidden items-center gap-2 rounded border border-ink bg-ink px-4 py-2 font-semibold text-paper transition-colors duration-300 hover:bg-paper hover:text-ink md:flex"
           >
@@ -60,9 +62,9 @@ export function Navbar() {
               </a>
             </li>
           ))}
-          {profile.resumeUrl && (
+          {resumeUrl && (
             <li>
-              <a href={profile.resumeUrl} download onClick={close} className="block rounded p-3 hover:bg-zinc-100">
+              <a href={resumeUrl} download onClick={close} className="block rounded p-3 hover:bg-zinc-100">
                 Resume
               </a>
             </li>

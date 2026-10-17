@@ -1,9 +1,10 @@
-import { profile } from "@/content/profile";
+import { getProfile } from "@/lib/content";
 import { Reveal } from "@/components/reveal";
 import { SocialLinks } from "@/components/social-links";
 import { ContactForm } from "@/components/contact-form";
 
-export function Contact() {
+export async function Contact() {
+  const profile = await getProfile();
   return (
     <section id="contact" className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 md:grid-cols-2 lg:px-8">
       <Reveal variant="slide-left" className="flex justify-center md:justify-start">

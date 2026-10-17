@@ -1,8 +1,9 @@
-import { experience } from "@/content/experience";
+import { getExperience } from "@/lib/content";
 import { Reveal } from "@/components/reveal";
 import { SectionHeading } from "@/components/section-heading";
 
-export function Experience() {
+export async function Experience() {
+  const experience = await getExperience();
   return (
     <section id="experience" className="mt-9 bg-ink px-4 py-12 text-paper md:py-16 lg:px-8">
       <div className="mx-auto max-w-5xl">

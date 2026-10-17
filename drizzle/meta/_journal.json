@@ -8,6 +8,13 @@
       "when": 1792271664068,
       "tag": "0000_daffy_sage",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792272616368,
+      "tag": "0001_careful_ricochet",
+      "breakpoints": true
     }
   ]
 }

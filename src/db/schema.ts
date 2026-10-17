@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -70,3 +70,95 @@ export const rateLimits = pgTable("rate_limits", {
     .default(sql`now()`),
   count: integer("count").notNull().default(0),
 });
+
+/* ---------- Portfolio content (Phase 3) ---------- */
+
+export const CONTENT_SECTIONS = ["profile", "skills", "experience", "projects"] as const;
+export type ContentSection = (typeof CONTENT_SECTIONS)[number];
+
+/**
+ * A row means "the owner has saved this section", so the DB wins even when a list
+ * is empty. No row means the static fallback in src/content is used.
+ */
+export const contentSections = pgTable(
+  "content_sections",
+  {
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    section: text("section").$type<ContentSection>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.section] })],
+);
+
+export type SocialRow = { key: string; name: string; url: string };
+
+export const siteProfile = pgTable("site_profile", {
+  appId: uuid("app_id")
+    .primaryKey()
+    .references(() => apps.id, { onDelete: "cascade" }),
+  firstName: text("first_name").notNull(),
+  fullName: text("full_name").notNull(),
+  title: text("title").notNull(),
+  subtitle: text("subtitle").notNull(),
+  location: text("location").notNull(),
+  summary: text("summary").notNull(),
+  description: text("description").notNull(),
+  email: text("email").notNull(),
+  resumeUrl: text("resume_url"),
+  socials: jsonb("socials").$type<SocialRow[]>().notNull().default([]),
+  aboutParagraphs: jsonb("about_paragraphs").$type<string[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const skills = pgTable(
+  "skills",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    icon: text("icon").notNull(),
+    proficiency: integer("proficiency").notNull(),
+    position: integer("position").notNull(),
+  },
+  (t) => [index("skills_app_position_idx").on(t.appId, t.position)],
+);
+
+export const experiences = pgTable(
+  "experiences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    company: text("company").notNull(),
+    period: text("period").notNull(),
+    description: text("description").notNull(),
+    position: integer("position").notNull(),
+  },
+  (t) => [index("experiences_app_position_idx").on(t.appId, t.position)],
+);
+
+export const featuredProjects = pgTable(
+  "featured_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    technologies: text("technologies").array().notNull().default(sql`'{}'::text[]`),
+    imageUrl: text("image_url"),
+    githubLink: text("github_link"),
+    liveLink: text("live_link"),
+    position: integer("position").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("featured_projects_app_position_idx").on(t.appId, t.position)],
+);

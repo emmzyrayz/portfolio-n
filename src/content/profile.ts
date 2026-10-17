@@ -38,3 +38,5 @@ export const aboutParagraphs = [
   "PLACEHOLDER - Describe your background, how you got into development and the kind of problems you enjoy solving.",
   "PLACEHOLDER - Mention what you are currently learning or looking for, and what you do outside of code.",
 ];
+
+export type Profile = typeof profile;

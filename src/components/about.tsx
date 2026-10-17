@@ -1,8 +1,9 @@
-import { aboutParagraphs } from "@/content/profile";
+import { getProfile } from "@/lib/content";
 import { Reveal } from "@/components/reveal";
 import { ProfileIllustration } from "@/components/illustrations/profile-illustration";
 
-export function About() {
+export async function About() {
+  const { aboutParagraphs } = await getProfile();
   return (
     <section id="about" className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 md:grid-cols-2 md:gap-10 lg:px-8">
       <Reveal variant="slide-left">

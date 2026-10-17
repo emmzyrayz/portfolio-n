@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { sessions, users } from "@/db/schema";
@@ -12,6 +13,8 @@ import { readSessionId } from "@/lib/session";
  * Reads cookies, so with cacheComponents it must run under <Suspense>.
  */
 export const verifySession = cache(async () => {
+  // Session expiry depends on the current time, so this must run at request time, never during prerender.
+  await connection();
   const sid = await readSessionId();
   if (!sid) redirect("/login");
 
@@ -24,3 +27,10 @@ export const verifySession = cache(async () => {
   if (!row) redirect("/login");
   return row;
 });
+
+/** Same check, additionally requiring the owner role (all content edits). */
+export async function verifyOwner() {
+  const session = await verifySession();
+  if (session.role !== "owner") redirect("/login");
+  return session;
+}

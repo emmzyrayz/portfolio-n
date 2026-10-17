@@ -1,10 +1,11 @@
 import type { CSSProperties } from "react";
-import { skills } from "@/content/skills";
+import { getSkills } from "@/lib/content";
 import { Reveal } from "@/components/reveal";
 import { SectionHeading } from "@/components/section-heading";
 import { skillIcons } from "@/components/skill-icons";
 
-export function Skills() {
+export async function Skills() {
+  const skills = await getSkills();
   return (
     <section id="skills" className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
       <Reveal>

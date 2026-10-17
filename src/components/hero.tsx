@@ -1,9 +1,10 @@
-import { profile } from "@/content/profile";
+import { getProfile } from "@/lib/content";
 import { Reveal } from "@/components/reveal";
 import { SocialLinks } from "@/components/social-links";
 import HeroIllustration from "@/components/illustrations/hero-illustration";
 
-export function Hero() {
+export async function Hero() {
+  const profile = await getProfile();
   return (
     <section id="home" className="mx-auto grid max-w-7xl items-center gap-8 overflow-hidden px-4 py-10 md:grid-cols-2 md:py-16 lg:min-h-[calc(100vh-5rem)] lg:px-8">
       <div className="order-2 flex flex-col gap-5 md:order-1">
