@@ -125,6 +125,7 @@ export async function verifyOtp(_prev: AuthState, formData: FormData): Promise<A
         AND expires_at > now() AND attempts < ${OTP_MAX_ATTEMPTS}
       ORDER BY created_at DESC LIMIT 1
     )
+    AND consumed_at IS NULL AND expires_at > now() AND attempts < ${OTP_MAX_ATTEMPTS}
     RETURNING id, code_hash
   `);
   const row = claimed.rows[0] as { id: string; code_hash: string } | undefined;

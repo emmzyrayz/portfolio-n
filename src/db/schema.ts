@@ -301,3 +301,59 @@ export const telemetryLogs = pgTable(
     index("telemetry_created_idx").on(t.createdAt),
   ],
 );
+
+/* ---------- Hub: multi-tenant end-user auth (Phase 6, step 5) ---------- */
+
+/** End-users of a client project. The same email under two tenants is two separate users. */
+export const tenantUsers = pgTable(
+  "tenant_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").notNull().default("user"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("tenant_users_app_email_idx").on(t.appId, t.email)],
+);
+
+/** One-time sign-in codes. Only an HMAC bound to (tenant, email, code) is stored. */
+export const tenantOtps = pgTable(
+  "tenant_otps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tenant_otps_app_email_idx").on(t.appId, t.email)],
+);
+
+/** End-user sessions. token_hash is an HMAC of the issued JWT, so a database leak reveals no token. */
+export const tenantSessions = pgTable(
+  "tenant_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => tenantUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tenant_sessions_app_user_idx").on(t.appId, t.userId)],
+);

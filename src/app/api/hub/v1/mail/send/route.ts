@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { withHub } from "@/lib/hub";
 import { isMailAvailable, sendMail } from "@/lib/mail";
-import { describeSendError, reserveMailQuota, writeMailLogs, type MailLogRow } from "@/lib/mail-hub";
+import { describeSendError, reserveMailQuota, safeDisplayName, writeMailLogs, type MailLogRow } from "@/lib/mail-hub";
 import { MAX_REQUEST_BYTES, invalidFields, mailSendSchema } from "@/lib/mail-schemas";
 
 // Sends transactional email on behalf of an authenticated tenant, through the shared sendMail().
@@ -12,9 +12,6 @@ export const maxDuration = 30; // SMTP can be slow; the quota/DB work around it 
 
 const invalidRequest = (fields: string[]) =>
   Response.json({ error: { code: "invalid_request", message: "The request body is invalid.", fields } }, { status: 400 });
-
-/** Display name from the tenant's app name, stripped of anything that could break a header. */
-const safeName = (name: string) => name.replace(/[\r\n\0<>"]/g, "").trim().slice(0, 80) || "Mail";
 
 export const POST = withHub(async ({ app, key }, request) => {
   if (!isMailAvailable()) {
@@ -54,7 +51,7 @@ export const POST = withHub(async ({ app, key }, request) => {
   for (const to of recipients) {
     const id = randomUUID();
     try {
-      await sendMail({ to, subject, text, html, replyTo, fromName: safeName(app.name) });
+      await sendMail({ to, subject, text, html, replyTo, fromName: safeDisplayName(app.name) });
       results.push({ id, to, status: "sent" });
       logs.push({ id, appId: app.id, keyId: key.id, recipient: to, subject, status: "sent" });
     } catch (error) {

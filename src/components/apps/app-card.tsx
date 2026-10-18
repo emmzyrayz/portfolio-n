@@ -5,6 +5,7 @@ import { ConfirmButton } from "./confirm-button";
 import { MailLogs } from "./mail-logs";
 import { TelemetryInspector, type InspectorState } from "./telemetry-inspector";
 import { CreateKeyForm } from "./create-key-form";
+import { UsersDirectory } from "./users-directory";
 
 const date = (d: Date | null) => (d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "never");
 
@@ -74,6 +75,8 @@ export function AppCard({ app, inspector }: { app: AdminApp; inspector?: Inspect
       <MailLogs appName={app.name} mail={app.mail} />
 
       <TelemetryInspector slug={app.slug} name={app.name} summary={app.telemetry} inspector={inspector} />
+
+      <UsersDirectory appName={app.name} directory={app.directory} />
 
       {app.status === "active" ? (
         <CreateKeyForm appId={app.id} />

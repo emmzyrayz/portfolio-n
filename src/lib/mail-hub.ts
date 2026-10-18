@@ -35,6 +35,12 @@ export async function reserveMailQuota(appId: string, recipients: number): Promi
   return { ok: true };
 }
 
+/** Gives back a reservation when the work it paid for never happened (e.g. the OTP row could not be stored). */
+export async function releaseMailQuota(appId: string, recipients: number) {
+  await releaseQuota(tenantQuotaKey(appId), recipients);
+  await releaseQuota(GLOBAL_QUOTA_KEY, recipients);
+}
+
 /**
  * A short, safe description of why a send failed. SMTP error text can contain server names, response
  * lines and other internals, so only a class and the numeric/system code are kept. Credentials can
@@ -53,6 +59,9 @@ export function describeSendError(error: unknown): string {
 
   return [kind, code && `(${code}${responseCode ? ` ${responseCode}` : ""})`].filter(Boolean).join(" ").slice(0, 300);
 }
+
+/** Display name from the tenant's app name, stripped of anything that could break a header. */
+export const safeDisplayName = (name: string) => name.replace(/[\r\n\0<>"]/g, "").trim().slice(0, 80) || "Mail";
 
 export type MailLogRow = {
   id: string;

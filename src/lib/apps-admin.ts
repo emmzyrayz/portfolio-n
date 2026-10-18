@@ -2,12 +2,13 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { getDb } from "@/db";
-import { apiKeys, apps, type AppStatus } from "@/db/schema";
+import { apiKeys, apps, tenantSessions, type AppStatus } from "@/db/schema";
 import { verifyOwner } from "@/lib/dal";
 import { MAX_ACTIVE_KEYS } from "@/lib/apps-schemas";
 import { listConfig } from "@/lib/config-admin";
 import { listRecentMail, type AppMail } from "@/lib/mail-admin";
 import { getTelemetrySummaries, type TelemetrySummary } from "@/lib/telemetry-admin";
+import { listTenantDirectories, type AppDirectory } from "@/lib/tenant-users-admin";
 import type { ConfigEntry } from "@/lib/config-schemas";
 import { generateApiKey } from "@/lib/hub-keys";
 import { invalidateAuth } from "@/lib/hub-state";
@@ -36,6 +37,7 @@ export type AdminApp = {
   config: (ConfigEntry & { updatedAt: Date })[];
   mail: AppMail;
   telemetry: TelemetrySummary;
+  directory: AppDirectory;
 };
 
 export async function listClientApps(): Promise<AdminApp[]> {
@@ -60,7 +62,7 @@ export async function listClientApps(): Promise<AdminApp[]> {
     .orderBy(desc(apiKeys.createdAt));
 
   const ids = rows.map((r) => r.id);
-  const [configs, mail, telemetry] = await Promise.all([listConfig(ids), listRecentMail(ids), getTelemetrySummaries(ids)]);
+  const [configs, mail, telemetry, directories] = await Promise.all([listConfig(ids), listRecentMail(ids), getTelemetrySummaries(ids), listTenantDirectories(ids)]);
 
   return rows.map((app) => ({
     id: app.id,
@@ -70,6 +72,7 @@ export async function listClientApps(): Promise<AdminApp[]> {
     statusChangedAt: app.statusChangedAt,
     createdAt: app.createdAt,
     config: configs.get(app.id) ?? [],
+    directory: directories.get(app.id) ?? { totalUsers: 0, usersWithSession: 0, activeSessions: 0, users: [] },
     mail: mail.get(app.id) ?? { recent: [], usedThisHour: 0, windowEndsAt: null },
     telemetry: telemetry.get(app.id) ?? { counts: { debug: 0, info: 0, warn: 0, error: 0, fatal: 0 }, errorsLastHour: 0 },
     keys: keys
@@ -146,6 +149,7 @@ export async function revokeKey(keyId: string): Promise<boolean> {
 /**
  * Handing over or archiving a project cuts it off: every active key is revoked in the same atomic
  * batch, so a client that has left can never call the hub. Reactivating does not restore old keys.
+ * Its end-user sessions (tenant_sessions) are revoked in that same batch.
  */
 export async function setAppStatus(appId: string, status: AppStatus): Promise<boolean> {
   await verifyOwner();
@@ -158,6 +162,8 @@ export async function setAppStatus(appId: string, status: AppStatus): Promise<bo
   ];
   if (status !== "active") {
     queries.push(db.update(apiKeys).set({ revokedAt: new Date() }).where(and(eq(apiKeys.appId, appId), isNull(apiKeys.revokedAt))));
+    // the project's end-users are signed out in the same transaction
+    queries.push(db.update(tenantSessions).set({ revokedAt: new Date() }).where(and(eq(tenantSessions.appId, appId), isNull(tenantSessions.revokedAt))));
   }
   await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
   invalidateAuth({ appId }); // status changed: drop every cached key of this app on this instance
