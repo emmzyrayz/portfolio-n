@@ -1,5 +1,6 @@
 import { revokeKeyAction, setAppStatusAction } from "@/app/actions/apps";
 import type { AdminApp } from "@/lib/apps-admin";
+import { ConfigEditor } from "./config-editor";
 import { ConfirmButton } from "./confirm-button";
 import { CreateKeyForm } from "./create-key-form";
 
@@ -53,6 +54,19 @@ export function AppCard({ app }: { app: AdminApp }) {
             ))}
           </ul>
         )}
+      </section>
+
+      <section aria-label={`Config and flags for ${app.name}`}>
+        <details className="rounded-md border border-zinc-300 p-3">
+          <summary className="cursor-pointer text-sm font-bold">Config &amp; flags ({app.config.length})</summary>
+          <div className="mt-3">
+            {app.status === "active" ? (
+              <ConfigEditor appId={app.id} slug={app.slug} initial={app.config.map((c) => ({ key: c.key, value: c.value }))} />
+            ) : (
+              <p className="text-sm text-zinc-500">Read-only while this project is {statusLabel[app.status].toLowerCase()}: {app.config.length} saved keys. Reactivate it to edit.</p>
+            )}
+          </div>
+        </details>
       </section>
 
       {app.status === "active" ? (

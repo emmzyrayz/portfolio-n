@@ -229,3 +229,20 @@ export const cvDocuments = pgTable(
       .where(sql`${t.isPublished}`),
   ],
 );
+
+/* ---------- Hub: remote config & feature flags (Phase 6, step 2) ---------- */
+
+/** Per-tenant JSON config. Flags are just boolean values under a naming convention (e.g. flags.new_checkout). */
+export const appConfig = pgTable(
+  "app_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: jsonb("value").$type<unknown>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("app_config_app_key_idx").on(t.appId, t.key)],
+);

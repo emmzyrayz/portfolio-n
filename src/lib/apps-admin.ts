@@ -5,7 +5,10 @@ import { getDb } from "@/db";
 import { apiKeys, apps, type AppStatus } from "@/db/schema";
 import { verifyOwner } from "@/lib/dal";
 import { MAX_ACTIVE_KEYS } from "@/lib/apps-schemas";
+import { listConfig } from "@/lib/config-admin";
+import type { ConfigEntry } from "@/lib/config-schemas";
 import { generateApiKey } from "@/lib/hub-keys";
+import { invalidateAuth } from "@/lib/hub-state";
 
 // Every function re-verifies the owner session itself (data access layer). Only `client` tenants can
 // be touched here: the owner's own `internal` app is invisible to this module on purpose.
@@ -28,6 +31,7 @@ export type AdminApp = {
   statusChangedAt: Date | null;
   createdAt: Date;
   keys: AdminKey[];
+  config: (ConfigEntry & { updatedAt: Date })[];
 };
 
 export async function listClientApps(): Promise<AdminApp[]> {
@@ -51,6 +55,8 @@ export async function listClientApps(): Promise<AdminApp[]> {
     .where(inArray(apiKeys.appId, rows.map((r) => r.id)))
     .orderBy(desc(apiKeys.createdAt));
 
+  const configs = await listConfig(rows.map((r) => r.id));
+
   return rows.map((app) => ({
     id: app.id,
     slug: app.slug,
@@ -58,6 +64,7 @@ export async function listClientApps(): Promise<AdminApp[]> {
     status: app.status,
     statusChangedAt: app.statusChangedAt,
     createdAt: app.createdAt,
+    config: configs.get(app.id) ?? [],
     keys: keys
       .filter((k) => k.appId === app.id)
       .map((k) => ({
@@ -125,6 +132,7 @@ export async function revokeKey(keyId: string): Promise<boolean> {
     .set({ revokedAt: new Date() })
     .where(and(eq(apiKeys.id, keyId), isNull(apiKeys.revokedAt), inArray(apiKeys.appId, clientApps)))
     .returning({ id: apiKeys.id });
+  if (revoked.length > 0) invalidateAuth({ keyId }); // this instance stops trusting the key at once; others within the cache TTL
   return revoked.length > 0;
 }
 
@@ -145,5 +153,6 @@ export async function setAppStatus(appId: string, status: AppStatus): Promise<bo
     queries.push(db.update(apiKeys).set({ revokedAt: new Date() }).where(and(eq(apiKeys.appId, appId), isNull(apiKeys.revokedAt))));
   }
   await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
+  invalidateAuth({ appId }); // status changed: drop every cached key of this app on this instance
   return true;
 }

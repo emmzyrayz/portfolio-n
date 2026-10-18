@@ -115,12 +115,12 @@ export function RowShell({ title, index, count, onMove, onRemove, children }: Ro
   );
 }
 
-type SaveBarProps = { pending: boolean; state: ContentState };
+type SaveBarProps = { pending: boolean; state: ContentState; /** Extra reason to block saving (e.g. invalid input) without showing "Saving...". */ disabled?: boolean };
 
-export function SaveBar({ pending, state }: SaveBarProps) {
+export function SaveBar({ pending, state, disabled = false }: SaveBarProps) {
   return (
     <div className="flex flex-col gap-2">
-      <button type="submit" disabled={pending} className={buttonClass}>
+      <button type="submit" disabled={pending || disabled} className={buttonClass}>
         {pending ? "Saving..." : "Save changes"}
       </button>
       <p role="status" aria-live="polite" className={state.status === "success" ? "text-green-700" : "text-error"}>
