@@ -9,8 +9,40 @@ export const apps = pgTable("apps", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
+  /** "internal" = the owner's own site (never reachable via the hub); "client" = a hub tenant. */
+  kind: text("kind").$type<AppKind>().notNull().default("client"),
+  status: text("status").$type<AppStatus>().notNull().default("active"),
+  statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
+
+export const APP_KINDS = ["internal", "client"] as const;
+export type AppKind = (typeof APP_KINDS)[number];
+export const APP_STATUSES = ["active", "handed_over", "archived"] as const;
+export type AppStatus = (typeof APP_STATUSES)[number];
+
+/** Hub API keys. Only an HMAC of the key is stored; the raw key is shown once at creation. */
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull(),
+    /** Non-secret, e.g. "hub_live_aB3x": lets the owner tell keys apart in the UI. */
+    keyPrefix: text("key_prefix").notNull(),
+    rateLimitPerMin: integer("rate_limit_per_min").notNull().default(60),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("api_keys_key_hash_idx").on(t.keyHash),
+    index("api_keys_app_idx").on(t.appId),
+  ],
+);
 
 export const users = pgTable(
   "users",

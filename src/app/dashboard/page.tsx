@@ -51,6 +51,13 @@ async function Overview() {
           CV builder
           <span className="text-xs font-normal opacity-70">Tailor a CV to a job</span>
         </Link>
+        <Link
+          href="/dashboard/apps"
+          className="flex items-center justify-between gap-3 rounded-md border-2 border-ink px-4 py-3 font-semibold transition-colors duration-300 hover:bg-ink hover:text-paper"
+        >
+          API hub
+          <span className="text-xs font-normal opacity-70">Client projects &amp; API keys</span>
+        </Link>
         <Link href="/" className="w-fit text-sm font-semibold underline underline-offset-4">
           View public site
         </Link>
