@@ -44,3 +44,6 @@ next-env.d.ts
 # legacy reference code (not committed)
 /_legacy/
 .neon
+
+# handover exports (contain personal data)
+/handover-exports/
