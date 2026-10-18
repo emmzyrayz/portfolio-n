@@ -14,6 +14,8 @@ import { HubLimiter } from "@/lib/hub-limiter";
 export const AUTH_TTL_MS = 15_000;
 export const CONFIG_TTL_MS = 30_000;
 export const RATE_WINDOW_MS = 60_000;
+export const TELEMETRY_TENANT_WINDOW_MS = 60 * 60 * 1000;
+export const TELEMETRY_GLOBAL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type AuthRow = {
   keyId: string;
@@ -37,6 +39,9 @@ export type ConfigSnapshot = {
 type HubState = {
   auth: TtlCache<AuthRow>;
   limiter: HubLimiter;
+  /** Telemetry event budgets (per tenant per hour, and across all tenants per day), decided in memory. */
+  telemetryTenant: HubLimiter;
+  telemetryGlobal: HubLimiter;
   config: TtlCache<ConfigSnapshot>;
   configInflight: Map<string, Promise<ConfigSnapshot>>;
   /** Bumped on every invalidation so a load that started before a save never repopulates the cache. */
@@ -49,6 +54,8 @@ const g = globalThis as typeof globalThis & { __hubState?: HubState };
 export const hubState: HubState = (g.__hubState ??= {
   auth: new TtlCache<AuthRow>({ maxEntries: 500, ttlMs: AUTH_TTL_MS }),
   limiter: new HubLimiter({ windowMs: RATE_WINDOW_MS, maxEntries: 5000 }),
+  telemetryTenant: new HubLimiter({ windowMs: TELEMETRY_TENANT_WINDOW_MS, maxEntries: 1000 }),
+  telemetryGlobal: new HubLimiter({ windowMs: TELEMETRY_GLOBAL_WINDOW_MS, maxEntries: 4 }),
   config: new TtlCache<ConfigSnapshot>({ maxEntries: 200, ttlMs: CONFIG_TTL_MS }),
   configInflight: new Map(),
   configGeneration: new Map(),

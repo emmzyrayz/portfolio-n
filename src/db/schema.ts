@@ -271,3 +271,33 @@ export const mailLogs = pgTable(
   },
   (t) => [index("mail_logs_app_created_idx").on(t.appId, t.createdAt.desc())],
 );
+
+/* ---------- Hub: telemetry & error logging (Phase 6, step 4) ---------- */
+
+export const TELEMETRY_LEVELS = ["debug", "info", "warn", "error", "fatal"] as const;
+export type TelemetryLevel = (typeof TELEMETRY_LEVELS)[number];
+
+/** Structured logs pushed by client projects. created_at is the SERVER receive time (never client-supplied). */
+export const telemetryLogs = pgTable(
+  "telemetry_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    keyId: uuid("key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    eventType: text("event_type").notNull(),
+    level: text("level").$type<TelemetryLevel>().notNull(),
+    message: text("message").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // filtered inspector views (e.g. errors only for one tenant)
+    index("telemetry_app_level_created_idx").on(t.appId, t.level, t.createdAt),
+    // default "latest events across all levels" view
+    index("telemetry_app_created_idx").on(t.appId, t.createdAt.desc()),
+    // 30-day retention: an index range delete instead of a table scan
+    index("telemetry_created_idx").on(t.createdAt),
+  ],
+);

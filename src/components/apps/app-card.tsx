@@ -3,6 +3,7 @@ import type { AdminApp } from "@/lib/apps-admin";
 import { ConfigEditor } from "./config-editor";
 import { ConfirmButton } from "./confirm-button";
 import { MailLogs } from "./mail-logs";
+import { TelemetryInspector, type InspectorState } from "./telemetry-inspector";
 import { CreateKeyForm } from "./create-key-form";
 
 const date = (d: Date | null) => (d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "never");
@@ -15,7 +16,7 @@ function StatusBadge({ status }: { status: AdminApp["status"] }) {
 }
 
 /** Server component: all mutations are bound Server Actions that re-verify the owner session. */
-export function AppCard({ app }: { app: AdminApp }) {
+export function AppCard({ app, inspector }: { app: AdminApp; inspector?: InspectorState }) {
   const activeKeys = app.keys.filter((k) => !k.revokedAt);
 
   return (
@@ -71,6 +72,8 @@ export function AppCard({ app }: { app: AdminApp }) {
       </section>
 
       <MailLogs appName={app.name} mail={app.mail} />
+
+      <TelemetryInspector slug={app.slug} name={app.name} summary={app.telemetry} inspector={inspector} />
 
       {app.status === "active" ? (
         <CreateKeyForm appId={app.id} />

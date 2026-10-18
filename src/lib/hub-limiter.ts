@@ -54,8 +54,11 @@ export class HubLimiter {
     return entry;
   }
 
-  /** Counts this request and decides immediately. Denied requests are not counted (nothing to sync). */
-  take(id: string, limit: number): LimitDecision {
+  /**
+   * Counts `cost` units (default 1) and decides immediately, all-or-nothing: a request that does not fit
+   * takes nothing. Denied requests are not counted (nothing to sync).
+   */
+  take(id: string, limit: number, cost = 1): LimitDecision {
     const now = this.now();
     const entry = this.entry(id, now);
 
@@ -63,15 +66,23 @@ export class HubLimiter {
     // this instance has allowed since, which the database has not seen yet). The stricter one wins.
     const globalValid = now < entry.globalEndsAt;
     const globalView = globalValid ? entry.global + entry.pending : 0;
-    const used = Math.max(entry.local, globalView) + 1; // this request would be number `used` in the window
+    const used = Math.max(entry.local, globalView) + cost; // usage in the window if this request is admitted
     const windowEnd = globalView > entry.local ? entry.globalEndsAt : entry.windowStart + this.options.windowMs;
     const retryAfterSeconds = Math.max(1, Math.ceil((windowEnd - now) / 1000));
 
     if (used > limit) return { allowed: false, remaining: 0, retryAfterSeconds };
 
-    entry.local += 1;
-    entry.pending += 1;
+    entry.local += cost;
+    entry.pending += cost;
     return { allowed: true, remaining: Math.max(0, limit - used), retryAfterSeconds };
+  }
+
+  /** Gives back units taken by take() (e.g. when a second budget rejects the same request). */
+  refund(id: string, cost: number) {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    entry.local = Math.max(0, entry.local - cost);
+    entry.pending = Math.max(0, entry.pending - cost);
   }
 
   /** Feeds back the durable counter (count in the DB's window, and when that window ends). */

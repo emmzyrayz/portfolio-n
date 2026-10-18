@@ -15,13 +15,13 @@ export type RateLimitResult = {
  * Fixed-window counter in Postgres: one atomic upsert per call. Use `rateLimited()` when only a
  * yes/no is needed, `hitRateLimit()` when the caller also wants the count (e.g. for headers).
  */
-export async function hitRateLimit(key: string, max: number, windowMs: number): Promise<RateLimitResult> {
+export async function hitRateLimit(key: string, max: number, windowMs: number, cost = 1): Promise<RateLimitResult> {
   const windowSeconds = windowMs / 1000;
   const result = await getDb().execute(sql`
     INSERT INTO rate_limits (key, window_start, count)
-    VALUES (${key}, now(), 1)
+    VALUES (${key}, now(), ${cost})
     ON CONFLICT (key) DO UPDATE SET
-      count = CASE WHEN rate_limits.window_start < now() - make_interval(secs => ${windowSeconds}) THEN 1 ELSE rate_limits.count + 1 END,
+      count = CASE WHEN rate_limits.window_start < now() - make_interval(secs => ${windowSeconds}) THEN ${cost} ELSE rate_limits.count + ${cost} END,
       window_start = CASE WHEN rate_limits.window_start < now() - make_interval(secs => ${windowSeconds}) THEN now() ELSE rate_limits.window_start END
     RETURNING count, EXTRACT(EPOCH FROM (window_start + make_interval(secs => ${windowSeconds}) - now())) AS retry_after
   `);
