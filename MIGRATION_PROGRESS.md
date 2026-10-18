@@ -19,7 +19,7 @@ Last updated: 2026-10-17
 - Owner-only passwordless login (email OTP). Visitors do not sign in.
 - `/dashboard` for the owner; `/dashboard/edit` edits everything visitors see on the portfolio.
 - `/dashboard/cv`: paste a job description, Gemini API generates a tailored rich-text CV, editable and exportable.
-- Later (Phase 5): multi-tenant hub services for side projects: auth scoped by `x-app-id`, email proxy, telemetry and remote config / feature flags. Every record carries `app_id` so satellite apps can be detached into their own DBs.
+- Later (Phase 6): multi-tenant hub services for side projects: auth scoped by `x-app-id`, email proxy, telemetry and remote config / feature flags. Every record carries `app_id` so satellite apps can be detached into their own DBs.
 
 ## 3. Decisions
 | Topic | Decision |
@@ -39,9 +39,11 @@ Last updated: 2026-10-17
 - [x] Phase 0: `.env.example`
 - [x] Phase 1 (code complete, placeholder content): theme + layout + content files + ported sections + contact action. Lint/build pass; desktop checked in browser. TODO: check mobile widths, test a real SMTP send, replace all PLACEHOLDER content in `src/content/`, add `/resume.pdf` and set `profile.resumeUrl`, set `GITHUB_USERNAME` to pull real projects
 - [x] Phase 2 COMPLETE: Neon project linked (`neon.ts`, `.neon`; `dev` branch, no TTL), Drizzle schema (`apps`, `users`, `otp_codes`, `sessions`, plus `rate_limits`) in `src/db/`, migration in `drizzle/`, owner-only OTP login (`src/app/actions/auth.ts`, `src/lib/{otp,session,dal,rate-limit,app}.ts`, `src/proxy.ts`, `/login`, placeholder `/dashboard`). Driver: `drizzle-orm/neon-http` on the pooled URL; migrations use `DATABASE_URL_UNPOOLED` (`pnpm db:generate`, `pnpm db:migrate`). Dev with SMTP unset logs the OTP to the server console. TODO: apply the migration to `production` before deploying; set `SESSION_SECRET`/`OWNER_EMAIL`/SMTP in Vercel; test one real SMTP OTP send.
-- [x] Phase 3 COMPLETE (uncommitted; lint, build, migration and browser tests pass): DB-backed content with static fallback. Tables `site_profile`, `skills`, `experiences`, `featured_projects` plus a `content_sections` marker (row = customised, so an emptied list stays empty; deleting it = reset to defaults); migration `0001_careful_ricochet`. Public reads: `src/lib/content.ts` (`"use cache"` + `cacheTag("content:<section>")`, static fallback on no-row or DB error). Editor reads/writes: `src/lib/content-admin.ts` (each calls `verifyOwner()`). Actions: `src/app/actions/content.ts` (verify session, zod, `db.batch` with explicit `position`, `updateTag` + `revalidatePath("/")`; profile uses `revalidatePath("/", "layout")`). UI: `/dashboard` overview, `/dashboard/edit/{profile,skills,experience,projects}`. Projects precedence: saved featured projects, then GitHub, then static. Deferred: testimonials editor, image uploads (project image is an https URL or `/path`). TODO: apply migrations to `production`; replace placeholder content via the dashboard.
-- [ ] Phase 4: CV builder (Gemini)
-- [ ] Phase 5: hub services
+- [x] Phase 3 COMPLETE (committed; lint, build, migration and browser tests pass): DB-backed content with static fallback. Tables `site_profile`, `skills`, `experiences`, `featured_projects` plus a `content_sections` marker (row = customised, so an emptied list stays empty; deleting it = reset to defaults); migration `0001_careful_ricochet`. Public reads: `src/lib/content.ts` (`"use cache"` + `cacheTag("content:<section>")`, static fallback on no-row or DB error). Editor reads/writes: `src/lib/content-admin.ts` (each calls `verifyOwner()`). Actions: `src/app/actions/content.ts` (verify session, zod, `db.batch` with explicit `position`, `updateTag` + `revalidatePath("/")`; profile uses `revalidatePath("/", "layout")`). UI: `/dashboard` overview, `/dashboard/edit/{profile,skills,experience,projects}`. Projects precedence: saved featured projects, then GitHub, then static. Deferred: testimonials editor, image uploads (project image is an https URL or `/path`). TODO: apply migrations to `production`; replace placeholder content via the dashboard.
+- [x] Phase 4 COMPLETE (deployed): Vercel project `nnamdiemmanueldike` (https://nnamdiemmanueldike.vercel.app, region iad1 = Neon us-east-1, Node 24.x), Neon `production` migrated (0000-0002), env vars set for Production (Neon production URLs) and Preview (Neon dev URLs): DATABASE_URL, DATABASE_URL_UNPOOLED, SESSION_SECRET, OWNER_EMAIL, SMTP_*, MAIL_FROM, GITHUB_TOKEN, GITHUB_USERNAME. Live OTP login via Gmail SMTP verified. The earlier `portfolio-n` Vercel project was deleted. GitHub repo is `emmzyrayz/portfolio-n` (already connected to the project). Deploys so far used `vercel deploy --prod`; migrations are run by hand before deploying (`pnpm db:migrate` with the production unpooled URL).
+- [x] Projects GitHub import (part of Phase 4, committed): `/dashboard/edit/projects` lists all owned repos (public + private, one GraphQL request, `src/lib/github-repos.ts`); choose which to show; private projects get no GitHub link or GitHub-hosted image and require a live URL, enforced on save by re-checking GitHub (`saveProjects` in `src/lib/content-admin.ts`). Migration 0002 adds `repo_full_name`, `is_private`, `stars` to `featured_projects`. Needs GITHUB_TOKEN (classic `repo` scope or fine-grained Metadata: read on all repos).
+- [ ] Phase 5: CV builder (Gemini) - outline in section 7
+- [ ] Phase 6: hub services
 
 ## 5. Scaffold notes to resolve
 - `package.json` lists `@tailwindcss/turbopack` and `next.config.ts` wires it as a CSS loader. Build works; confirm it is actually needed vs `@tailwindcss/postcss`.
@@ -49,6 +51,17 @@ Last updated: 2026-10-17
 - `cacheComponents` means DB/cookie reads must be under `<Suspense>` or `"use cache"`.
 
 ## 6. Next session starts at
-Phase 4: CV builder (Gemini), reading profile/experience from the DB.
+Phase 5: CV builder (Gemini), reading profile/experience from the DB. Before that: pick real projects, replace placeholder content via the dashboard, add `/resume.pdf`, rotate the old secrets (see security checklist).
 
 Notes: `_legacy/` (gitignored, excluded from tsconfig/eslint) holds the old UI for reference; delete when no longer needed. Dark mode intentionally dropped for now (light only). Remote project images use `unoptimized` because `sharp` is disabled.
+
+## 7. Phase 5 outline: CV builder (`/dashboard/cv`)
+Goal: paste a job description, get a tailored CV grounded only in the owner's real data, edit it, export it.
+- **Data source:** profile, experience, skills and chosen projects from the DB through the existing `verifyOwner()` readers (`getEditable*` in `src/lib/content-admin.ts`), never from the client.
+- **Schema:** `cv_documents` (app_id, title, job title/company, job description, content jsonb, timestamps) so each tailored CV is saved per job. Migrate dev, then production, before deploying.
+- **Generation:** Server Action calling Gemini (`@google/genai`, `GEMINI_API_KEY` server-only, set on Vercel Production and Preview) with structured JSON output validated by zod. The prompt forbids inventing employers, dates, skills or metrics; anything not traceable to source data is flagged in a diff view. Rate-limit per session and cap job-description length.
+- **Editor:** rich text (Tiptap) for summary and experience bullets, reorderable sections, saved drafts, one version per job.
+- **Export:** print-stylesheet PDF first (no extra dependency), `@react-pdf/renderer` only if needed. A chosen CV can feed the profile `resumeUrl` for the public Resume button.
+- **Security:** every action starts with `verifyOwner()`; job descriptions are untrusted input (treated as data, never as instructions); no CV data on public routes.
+- **Verify:** lint and build; migrate dev then production; paste a sample job description locally and confirm only real facts appear; export works; an unauthenticated replay of the action is rejected; then a live check.
+- **Needs from the owner:** a Gemini API key in `.env.local`, and a decision on whether the exported PDF is generated on demand or stored.

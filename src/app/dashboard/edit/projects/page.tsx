@@ -8,7 +8,7 @@ export default function ProjectsPage({ searchParams }: PageProps<"/dashboard/edi
     <section className="flex flex-col gap-4">
       <h1 className="text-3xl font-bold">Featured projects</h1>
       <p className="max-w-2xl text-sm text-zinc-500">
-        Once you save, these replace the automatic GitHub list on the public site. Reset to go back to GitHub.
+        Choose which of your GitHub repositories (public and private) appear on the public site. Once you save, your selection replaces the automatic public-repo list. Reset to go back to it.
       </p>
       <Suspense fallback={<p>Loading...</p>}>
         <Editor searchParams={searchParams} />
@@ -20,10 +20,10 @@ export default function ProjectsPage({ searchParams }: PageProps<"/dashboard/edi
 async function Editor({ searchParams }: { searchParams: Promise<{ reset?: string | string[] }> }) {
   // Changing ?reset= remounts the editor after a reset; saves keep the form (and its status message).
   const { reset } = await searchParams;
-  const projects = await getEditableProjects();
+  const data = await getEditableProjects(); // verifies the owner session, then reads DB + GitHub
   return (
     <>
-      <ProjectsEditor key={String(reset ?? "")} initial={projects} />
+      <ProjectsEditor key={String(reset ?? "")} data={data} />
       <ResetSection section="projects" />
     </>
   );

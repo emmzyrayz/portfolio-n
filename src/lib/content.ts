@@ -81,7 +81,7 @@ export async function loadFeaturedProjects(appId: string): Promise<Project[] | n
     image: r.imageUrl ?? undefined,
     githubLink: r.githubLink ?? undefined,
     liveLink: r.liveLink ?? undefined,
-    stars: 0,
+    stars: r.stars,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   }));

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -156,6 +156,10 @@ export const featuredProjects = pgTable(
     imageUrl: text("image_url"),
     githubLink: text("github_link"),
     liveLink: text("live_link"),
+    /** "owner/name" when imported from GitHub; null for manual projects. */
+    repoFullName: text("repo_full_name"),
+    isPrivate: boolean("is_private").notNull().default(false),
+    stars: integer("stars").notNull().default(0),
     position: integer("position").notNull(),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

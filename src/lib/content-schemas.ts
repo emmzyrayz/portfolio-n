@@ -72,14 +72,18 @@ export const projectsSchema = z
   .array(
     z.object({
       title: text("Title", 100),
-      description: text("Description", 1000),
+      // GitHub repos often have no description, so a project may leave it blank.
+      description: z.string().trim().max(1000, "Description must be at most 1000 characters."),
       technologies: z.array(text("Technology", 30)).max(10, "At most 10 technologies."),
       imageUrl: optional(urlOrPath),
       githubLink: optional(httpUrl),
       liveLink: optional(httpUrl),
+      /** "owner/name" when imported from GitHub. The server re-checks visibility, never trusts isPrivate. */
+      repo: optional(z.string().max(200).regex(/^[\w.-]+\/[\w.-]+$/, "Invalid repository name.")),
+      isPrivate: z.boolean().optional().default(false),
     }),
   )
-  .max(30, "At most 30 projects.");
+  .max(40, "At most 40 projects.");
 
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type SkillsInput = z.infer<typeof skillsSchema>;

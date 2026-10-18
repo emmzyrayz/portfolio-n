@@ -35,7 +35,7 @@ async function saveSection<S extends z.ZodType>(
   section: ContentSection,
   schema: S,
   formData: FormData,
-  save: (input: z.output<S>) => Promise<void>,
+  save: (input: z.output<S>) => Promise<{ message: string; fieldErrors?: Record<string, string> } | void>,
 ): Promise<ContentState> {
   await verifyOwner(); // authorise first, from the cookie, never from the client
 
@@ -54,7 +54,8 @@ async function saveSection<S extends z.ZodType>(
   }
 
   try {
-    await save(parsed.data);
+    const rejected = await save(parsed.data);
+    if (rejected) return { status: "error", message: rejected.message, fieldErrors: rejected.fieldErrors };
   } catch (error) {
     console.error(`Saving ${section} failed:`, error);
     return { status: "error", message: "Could not save. Please try again." };
