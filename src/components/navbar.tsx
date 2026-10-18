@@ -15,7 +15,7 @@ export function Navbar({ fullName, resumeUrl }: NavbarProps) {
   const close = () => setOpen(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-paper/90 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-paper/90 backdrop-blur print:hidden">
       <nav aria-label="Main" className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8 lg:py-4">
         <Link href="/" onClick={close} className="text-base font-extrabold transition-transform duration-300 hover:scale-105 lg:text-lg">
           {fullName}

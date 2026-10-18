@@ -11,9 +11,11 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@google/genai": "^2.30.0",
     "@neon/config": "^1.9.2",
     "@neon/env": "^1.6.3",
     "@neondatabase/serverless": "^1.2.0",
+    "@react-pdf/renderer": "^4.9.0",
     "drizzle-orm": "^0.45.4",
     "jose": "^6.2.12",
     "next": "16.4.2",

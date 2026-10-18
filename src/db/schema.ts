@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { CvContent, CvSource } from "@/lib/cv-schemas";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -165,4 +166,34 @@ export const featuredProjects = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("featured_projects_app_position_idx").on(t.appId, t.position)],
+);
+
+/* ---------- CV builder (Phase 5) ---------- */
+
+export const cvDocuments = pgTable(
+  "cv_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    jobTitle: text("job_title").notNull(),
+    company: text("company"),
+    jobDescription: text("job_description").notNull(),
+    content: jsonb("content").$type<CvContent>().notNull(),
+    /** The owner's facts at generation time, so later edits can be checked against them. */
+    source: jsonb("source").$type<CvSource>().notNull(),
+    model: text("model"),
+    isPublished: boolean("is_published").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("cv_documents_app_updated_idx").on(t.appId, t.updatedAt),
+    // at most one published CV per app (it backs the public /resume.pdf)
+    uniqueIndex("cv_documents_one_published_idx")
+      .on(t.appId)
+      .where(sql`${t.isPublished}`),
+  ],
 );

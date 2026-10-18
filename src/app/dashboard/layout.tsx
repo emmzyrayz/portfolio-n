@@ -6,5 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <main className="mx-auto min-h-screen max-w-3xl px-6 pb-16 pt-28">{children}</main>;
+  return <main className="mx-auto min-h-screen max-w-6xl px-6 pb-16 pt-28 print:max-w-none print:p-0">{children}</main>;
 }

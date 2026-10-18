@@ -42,8 +42,8 @@ Last updated: 2026-10-17
 - [x] Phase 3 COMPLETE (committed; lint, build, migration and browser tests pass): DB-backed content with static fallback. Tables `site_profile`, `skills`, `experiences`, `featured_projects` plus a `content_sections` marker (row = customised, so an emptied list stays empty; deleting it = reset to defaults); migration `0001_careful_ricochet`. Public reads: `src/lib/content.ts` (`"use cache"` + `cacheTag("content:<section>")`, static fallback on no-row or DB error). Editor reads/writes: `src/lib/content-admin.ts` (each calls `verifyOwner()`). Actions: `src/app/actions/content.ts` (verify session, zod, `db.batch` with explicit `position`, `updateTag` + `revalidatePath("/")`; profile uses `revalidatePath("/", "layout")`). UI: `/dashboard` overview, `/dashboard/edit/{profile,skills,experience,projects}`. Projects precedence: saved featured projects, then GitHub, then static. Deferred: testimonials editor, image uploads (project image is an https URL or `/path`). TODO: apply migrations to `production`; replace placeholder content via the dashboard.
 - [x] Phase 4 COMPLETE (deployed): Vercel project `nnamdiemmanueldike` (https://nnamdiemmanueldike.vercel.app, region iad1 = Neon us-east-1, Node 24.x), Neon `production` migrated (0000-0002), env vars set for Production (Neon production URLs) and Preview (Neon dev URLs): DATABASE_URL, DATABASE_URL_UNPOOLED, SESSION_SECRET, OWNER_EMAIL, SMTP_*, MAIL_FROM, GITHUB_TOKEN, GITHUB_USERNAME. Live OTP login via Gmail SMTP verified. The earlier `portfolio-n` Vercel project was deleted. GitHub repo is `emmzyrayz/portfolio-n` (already connected to the project). Deploys so far used `vercel deploy --prod`; migrations are run by hand before deploying (`pnpm db:migrate` with the production unpooled URL).
 - [x] Projects GitHub import (part of Phase 4, committed): `/dashboard/edit/projects` lists all owned repos (public + private, one GraphQL request, `src/lib/github-repos.ts`); choose which to show; private projects get no GitHub link or GitHub-hosted image and require a live URL, enforced on save by re-checking GitHub (`saveProjects` in `src/lib/content-admin.ts`). Migration 0002 adds `repo_full_name`, `is_private`, `stars` to `featured_projects`. Needs GITHUB_TOKEN (classic `repo` scope or fine-grained Metadata: read on all repos).
-- [ ] Phase 5: CV builder (Gemini) - outline in section 7
-- [ ] Phase 6: hub services
+- [x] Phase 5 COMPLETE (deployed): CV builder at `/dashboard/cv` (lint, tsc, build, injection/auth/failure-path checks pass). Neon production migrated (0003 `cv_documents`); `GEMINI_API_KEY` set on Vercel (Production + Preview, hidden). Owner TODOs: fill real profile/experience content first (generation is blocked while they are placeholders), then set the profile Resume URL to `/resume.pdf` after publishing a CV. Design notes in section 7; actual choices: plain structured editor (no Tiptap), `@react-pdf/renderer` PDF rendered per request (no storage, no app cache), grounding enforced in `src/lib/cv-ground.ts`.
+- [ ] Phase 6: hub services (API hub for side projects) - framework in section 8; needs its own detailed plan and approval before any code
 
 ## 5. Scaffold notes to resolve
 - `package.json` lists `@tailwindcss/turbopack` and `next.config.ts` wires it as a CSS loader. Build works; confirm it is actually needed vs `@tailwindcss/postcss`.
@@ -51,9 +51,37 @@ Last updated: 2026-10-17
 - `cacheComponents` means DB/cookie reads must be under `<Suspense>` or `"use cache"`.
 
 ## 6. Next session starts at
-Phase 5: CV builder (Gemini), reading profile/experience from the DB. Before that: pick real projects, replace placeholder content via the dashboard, add `/resume.pdf`, rotate the old secrets (see security checklist).
+Owner housekeeping first: pick real projects and replace placeholder content via the dashboard, generate and publish a CV, set the Resume URL to `/resume.pdf`, rotate the old secrets (see security checklist), swap the GitHub token for a fine-grained read-only one. Then Phase 6 planning (section 8).
 
 Notes: `_legacy/` (gitignored, excluded from tsconfig/eslint) holds the old UI for reference; delete when no longer needed. Dark mode intentionally dropped for now (light only). Remote project images use `unoptimized` because `sharp` is disabled.
+
+## 8. Phase 6 framework: hub services (API hub for side projects)
+Status: framework only. Phase 6 gets its own planning session, a written plan and your approval before any code, as every earlier phase did. This section fixes the shape so that plan starts from decisions, not a blank page.
+
+**Goal:** let side projects reuse this deployment's backend (auth, email, telemetry, config) instead of each rebuilding them, while keeping every project's data separable so it can later move to its own database.
+
+**Already in place (reuse, don't rebuild):** tenant column `app_id` and the `apps` table; owner-only OTP auth and signed sessions (`src/lib/{otp,session,dal}.ts`); `sendMail()` in `src/lib/mail.ts`; DB-backed rate limiting (`src/lib/rate-limit.ts`); Drizzle + Neon with a migrate-by-hand workflow; `verifyOwner()` as the guard on every owner action.
+
+**Candidate services (to be ranked in the plan):**
+1. **Auth engine:** OTP sign-in per app, scoped by `x-app-id`. Needs per-app allow-lists and settings (a visitor-facing app is not owner-only), per-app sessions.
+2. **Email proxy:** send mail on behalf of an app through `sendMail()`, with per-app sender and quotas.
+3. **Telemetry:** event ingest per app with retention limits.
+4. **Remote config / feature flags:** per-app key-value config and flags read by satellite apps.
+
+**Design decisions to settle first (each needs your call):**
+- **App identity:** how a satellite proves which app it is. An `x-app-id` header alone is a public identifier, not a secret, so it must be paired with a per-app secret/API key (stored hashed) or a signed token. Never trust `x-app-id` by itself.
+- **Surface:** route handlers under `/api/hub/v1/...` with explicit versioning, CORS allow-lists per app, and no cookie auth for service-to-service calls.
+- **Tenant isolation:** every query scoped by `app_id`; add a test that proves one app cannot read or write another's rows; consider Postgres row-level security as a second layer.
+- **Abuse limits:** per-app and per-IP rate limits (reuse `rateLimited()`), request size caps, per-app email quotas (the Gmail SMTP sender has hard daily limits, so a real provider such as Resend or ZeptoMail behind `sendMail()` is likely needed before opening this to other apps).
+- **Admin UI:** `/dashboard/apps` to create apps, rotate keys, set allowed origins and see usage; owner-only.
+- **Secrets and data:** app API keys shown once, stored hashed; telemetry must not collect personal data by default.
+- **Detach path:** keep per-app tables and exports so an app can be split into its own database later.
+
+**Proposed order (to confirm in the plan):** (a) apps admin + API-key auth middleware + isolation tests, (b) remote config/flags (smallest, proves the pattern), (c) email proxy with quotas, (d) telemetry, (e) per-app OTP auth last (highest risk).
+
+**Execution framework for every Phase 6 step (same as earlier phases):** plan then approval; schema change as a generated migration applied to Neon dev, then production before deploying; every endpoint starts with app authentication and an `app_id` scope; zod validation on all input; `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build` pass; local tests including cross-tenant and unauthenticated-replay checks; deploy and live sanity checks; update this log; commit only on approval.
+
+**Prerequisites from the owner:** which side projects will use the hub first and what each needs; whether to move email to a transactional provider now; the custom domain for the API (a stable URL matters once other apps depend on it).
 
 ## 7. Phase 5 outline: CV builder (`/dashboard/cv`)
 Goal: paste a job description, get a tailored CV grounded only in the owner's real data, edit it, export it.

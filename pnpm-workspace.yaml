@@ -2,3 +2,5 @@ allowBuilds:
   sharp: false
   unrs-resolver: false
   esbuild: false
+  '@google/genai': false
+  protobufjs: false

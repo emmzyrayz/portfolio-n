@@ -24,7 +24,7 @@ async function Overview() {
   const session = await verifySession();
   const status = await getSectionStatus();
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-3xl flex-col gap-6">
       <h1 className="text-3xl font-bold">Dashboard</h1>
       <p>Signed in as {session.email}.</p>
 
@@ -43,6 +43,14 @@ async function Overview() {
             </li>
           ))}
         </ul>
+        <h2 className="mt-2 text-xl font-bold">Tools</h2>
+        <Link
+          href="/dashboard/cv"
+          className="flex items-center justify-between gap-3 rounded-md border-2 border-ink px-4 py-3 font-semibold transition-colors duration-300 hover:bg-ink hover:text-paper"
+        >
+          CV builder
+          <span className="text-xs font-normal opacity-70">Tailor a CV to a job</span>
+        </Link>
         <Link href="/" className="w-fit text-sm font-semibold underline underline-offset-4">
           View public site
         </Link>
