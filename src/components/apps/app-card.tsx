@@ -2,6 +2,7 @@ import { revokeKeyAction, setAppStatusAction } from "@/app/actions/apps";
 import type { AdminApp } from "@/lib/apps-admin";
 import { ConfigEditor } from "./config-editor";
 import { ConfirmButton } from "./confirm-button";
+import { MailLogs } from "./mail-logs";
 import { CreateKeyForm } from "./create-key-form";
 
 const date = (d: Date | null) => (d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "never");
@@ -68,6 +69,8 @@ export function AppCard({ app }: { app: AdminApp }) {
           </div>
         </details>
       </section>
+
+      <MailLogs appName={app.name} mail={app.mail} />
 
       {app.status === "active" ? (
         <CreateKeyForm appId={app.id} />

@@ -246,3 +246,28 @@ export const appConfig = pgTable(
   },
   (t) => [uniqueIndex("app_config_app_key_idx").on(t.appId, t.key)],
 );
+
+/* ---------- Hub: mail proxy audit log (Phase 6, step 3) ---------- */
+
+export const MAIL_STATUSES = ["sent", "failed"] as const;
+export type MailStatus = (typeof MAIL_STATUSES)[number];
+
+/** One row per recipient per dispatch attempt. The message body is never stored. */
+export const mailLogs = pgTable(
+  "mail_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    /** Which key sent it; kept as history even if the key is later deleted. */
+    keyId: uuid("key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    recipient: text("recipient").notNull(),
+    subject: text("subject").notNull(),
+    status: text("status").$type<MailStatus>().notNull(),
+    /** Sanitized and truncated; never contains credentials. */
+    errorMessage: text("error_message"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("mail_logs_app_created_idx").on(t.appId, t.createdAt.desc())],
+);

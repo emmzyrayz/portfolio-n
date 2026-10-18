@@ -6,6 +6,7 @@ import { apiKeys, apps, type AppStatus } from "@/db/schema";
 import { verifyOwner } from "@/lib/dal";
 import { MAX_ACTIVE_KEYS } from "@/lib/apps-schemas";
 import { listConfig } from "@/lib/config-admin";
+import { listRecentMail, type AppMail } from "@/lib/mail-admin";
 import type { ConfigEntry } from "@/lib/config-schemas";
 import { generateApiKey } from "@/lib/hub-keys";
 import { invalidateAuth } from "@/lib/hub-state";
@@ -32,6 +33,7 @@ export type AdminApp = {
   createdAt: Date;
   keys: AdminKey[];
   config: (ConfigEntry & { updatedAt: Date })[];
+  mail: AppMail;
 };
 
 export async function listClientApps(): Promise<AdminApp[]> {
@@ -55,7 +57,7 @@ export async function listClientApps(): Promise<AdminApp[]> {
     .where(inArray(apiKeys.appId, rows.map((r) => r.id)))
     .orderBy(desc(apiKeys.createdAt));
 
-  const configs = await listConfig(rows.map((r) => r.id));
+  const [configs, mail] = await Promise.all([listConfig(rows.map((r) => r.id)), listRecentMail(rows.map((r) => r.id))]);
 
   return rows.map((app) => ({
     id: app.id,
@@ -65,6 +67,7 @@ export async function listClientApps(): Promise<AdminApp[]> {
     statusChangedAt: app.statusChangedAt,
     createdAt: app.createdAt,
     config: configs.get(app.id) ?? [],
+    mail: mail.get(app.id) ?? { recent: [], usedThisHour: 0, windowEndsAt: null },
     keys: keys
       .filter((k) => k.appId === app.id)
       .map((k) => ({

@@ -43,6 +43,13 @@
       "when": 1792305464717,
       "tag": "0005_charming_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792307911909,
+      "tag": "0006_shallow_random",
+      "breakpoints": true
     }
   ]
 }
